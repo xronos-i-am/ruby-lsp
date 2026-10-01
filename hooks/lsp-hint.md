@@ -61,7 +61,7 @@ The one thing that knows for certain is `grep` itself, and it cannot be asked: t
 happen before the run.
 
 The cost is accuracy on a compound command: `grep 'two words' . && grep Name .` passes whole,
-because quotes with a space are present in the line. Looking for the target inside the command would
+because one of the arguments in it is a quoted phrase. Looking for the target inside the command would
 cost a disk walk on every grep and would still be approximate, while a false pass here costs one
 un-denied grep: the hook goes on waiting for the next one.
 
@@ -70,6 +70,14 @@ un-denied grep: the hook goes on waiting for the next one.
 `grep 'GROUP BY total'` names a phrase, and looking for it as text is legitimate. That is the only
 thing that decides: a quote on its own belongs to the command, not to the pattern, so `grep 'User'`
 is denied just like `grep User`.
+
+The space is looked for inside one argument, and the arguments are pulled out in pairs from the left
+— `grep -oE "'[^']*'|\"[^\"]*\""`, the same way the line-processor branch does it. A regexp over the
+whole command line cannot tell a pair of quotes from a gap between two of them: for
+`grep "User" --include="*.rb"` it matched the closing quote of the name together with the opening
+quote of the next argument, found a space between them and read the whole thing as a phrase. Any
+search with two or more quoted arguments passed that way — `rg "Name" -g "*.rb"`,
+`grep "Name" "app/models"` — which is the mass case, not an edge one.
 
 For the `Grep` tool the pattern is a field, and there the alternation is taken apart: one branch
 without a space is enough — `Name\|SCAN orders` is denied for the sake of the name, while
@@ -97,7 +105,9 @@ what looked covered:
 - `git log -S` and `-G`, including `-SName` flush — the pickaxe looks for a commit by an occurrence
   of a symbol;
 - `sed`, `awk`, `perl` — they search no worse than grep, and the same commands are used to read a
-  file.
+  file;
+- `grep "Name" --include="*.rb"` — a second quoted argument looked like a phrase to a regexp that
+  read the whole command line instead of the arguments one by one.
 
 Everything that stands flush is collected in one `start` class: the hole was one, and writing it off
 would have taken three patterns.

@@ -74,6 +74,16 @@ class LspHintTest < Minitest::Test
     assert denied?("git log -S 'User'")
   end
 
+  # The mass case: a search with two quoted arguments. A regexp over the whole command line read the
+  # closing quote of the name and the opening quote of the next argument as a pair with a space
+  # between them, so every such call walked past the deny as a "phrase"
+  def test_second_quoted_argument_is_not_a_phrase
+    assert denied?('grep -rn "User" --include="*.rb" .')
+    assert denied?("grep -rn 'User' --include='*.rb' .")
+    assert denied?('rg "User" -g "*.rb"')
+    assert denied?('grep "User" "app/models"')
+  end
+
   # A separator and a substitution stand flush against the command name: all three forms of
   # `cat x;grep Name` walked past the hook
   def test_command_start_after_separator_and_substitution
@@ -120,6 +130,8 @@ class LspHintTest < Minitest::Test
     refute denied?("grep 'GROUP BY total' db/schema.rb")
     refute denied?('grep "GROUP BY total" db/schema.rb')
     refute denied?("grep -rn 'def average_price' app")
+    # The space stays inside one argument when a second quoted argument stands next to it
+    refute denied?('grep -rn "GROUP BY total" --include="*.rb" .')
   end
 
   def test_non_searching_command_passes

@@ -29,8 +29,22 @@ searcher=$start'(grep|egrep|fgrep|rg|ack|ag)([[:space:]]|$)'
 # `git log -S` and `-G` look for a commit by an occurrence of a symbol — same search, other verb
 pickaxe='(^|[[:space:]])git([[:space:]].*)?[[:space:]]-[SG]'
 scanner=$start'(awk|sed|perl)([[:space:]]|$)'
-# Quotes with a space inside: `grep 'GROUP BY total'` names a phrase, not a symbol
-phrase="('[^']*[[:space:]][^']*'|\"[^\"]*[[:space:]][^\"]*\")"
+
+# Quoted arguments, pulled out in pairs from the left. A regexp over the whole command line cannot
+# do it: the closing quote of one argument and the opening quote of the next look like a pair to it,
+# so `grep "User" --include="*.rb"` read as one quoted argument with a space inside
+quoted_args() {
+  grep -oE "'[^']*'|\"[^\"]*\"" <<< "$1" || true
+}
+
+# A space inside one argument: `grep 'GROUP BY total'` names a phrase, not a symbol
+names_a_phrase() {
+  local arg
+  while IFS= read -r arg; do
+    if [[ $arg == *[[:space:]]* ]]; then return 0; fi
+  done < <(quoted_args "$1")
+  return 1
+}
 
 case $tool in
   Grep)
@@ -52,12 +66,12 @@ case $tool in
     command=$(jq -r '.tool_input.command // ""' <<< "$payload")
 
     if [[ $command =~ $searcher || $command =~ $pickaxe ]]; then
-      ! [[ $command =~ $phrase ]] || exit 0
+      ! names_a_phrase "$command" || exit 0
     elif [[ $command =~ $scanner ]]; then
       # A line processor both searches and reads; addressing tells them apart: a slash pattern
       # is a search, a line number is a read. It is looked for inside quotes: a path argument
       # is full of slashes and would match outside them every time
-      quoted=$(grep -oE "'[^']*'|\"[^\"]*\"" <<< "$command" || true)
+      quoted=$(quoted_args "$command")
       [[ $quoted =~ /[^/]*[A-Za-z_][^/]*/ ]] || exit 0
     else
       exit 0
