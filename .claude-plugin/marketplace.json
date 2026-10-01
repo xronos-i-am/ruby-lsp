@@ -1,0 +1,13 @@
+{
+  "name": "xronos-i-am",
+  "description": "Plugins maintained at github.com/xronos-i-am",
+  "owner": { "name": "Sergei Malykh", "url": "https://github.com/xronos-i-am" },
+  "plugins": [
+    {
+      "name": "ruby-lsp-hint",
+      "source": "./",
+      "description": "Declares the ruby-lsp language server and denies symbol-name text search until the session has asked the LSP tool",
+      "category": "development"
+    }
+  ]
+}

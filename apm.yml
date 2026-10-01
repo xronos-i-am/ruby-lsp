@@ -1,0 +1,8 @@
+# Metadata only, on purpose: a manifest that declared dependencies or shipped .apm/
+# would make APM install this repository as an APM package instead of a Claude plugin,
+# and the lspServers block in .claude-plugin/plugin.json would never be read.
+name: ruby-lsp-hint
+version: 0.1.0
+description: ruby-lsp for Claude Code, with a hook that sends symbol navigation to the LSP tool
+author: xronos-i-am
+license: MIT

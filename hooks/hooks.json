@@ -1,0 +1,21 @@
+{
+  "description": "Sends Ruby symbol navigation to the LSP tool instead of grep",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Grep",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/lsp-hint.sh", "timeout": 10 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "LSP",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/lsp-hint.sh", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}
