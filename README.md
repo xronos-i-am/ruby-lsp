@@ -99,6 +99,13 @@ What lands in the project:
 APM owns those files and rewrites them on the next install, so edits belong in the package or in the
 project's own files — never in the deployed copies.
 
+A later `apm install` reproduces `apm.lock.yaml` instead of looking for new commits: with `apm.yml`
+unchanged it does not reach the remote at all. It clones the commit the lockfile records and
+reconciles the deployed copies against it — a hand-edited `.claude/hooks/ruby-lsp/hooks/lsp-hint.sh`
+is restored, a newer revision of the package is not fetched. That one comes from `apm update`
+(`--dry-run` for the plan, `--yes` outside an interactive shell). `apm outdated` does not help here: a
+dependency tracked by branch prints `Latest: -` and `Status: unknown`.
+
 ## Install as a Claude Code plugin
 
 The repository is also a one-plugin marketplace, so APM is not required. Nothing is copied into the
