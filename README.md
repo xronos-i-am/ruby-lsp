@@ -23,6 +23,30 @@ tells Claude Code how to start the binary you already have.
 | `skills/ruby-lsp-setup` | A one-off setup run: checks the server can start, finds a plugin that claims the same extensions, and writes the project's own `docs/agents/ruby-lsp.md` |
 | `skills/ruby-lsp-feedback` | Works out why a session did not reach the `LSP` tool and composes the issue about it, ready to send and sent by nobody but you |
 
+## How it works
+
+Three decisions, and nothing else:
+
+- **What it hangs on.** `PreToolUse` on `Bash` and `Grep` decides, `PostToolUse` on `LSP` silences. A
+  `Bash` line is cut into commands first — at `;`, `|`, `&`, a substitution and a newline, with quotes
+  honoured — and each command is judged on its own arguments: a searcher (`grep`, `egrep`, `fgrep`,
+  `rg`, `ack`, `ag`), the `git log -S`/`-G` pickaxe, or `awk`/`sed`/`perl` addressed by a slash pattern.
+  One searching command in the line is enough. The answer is a deny, not a comment, so the call does not
+  run and the reason arrives where its output would have been.
+- **What counts as a symbol.** The pattern is never pulled out of the command. What decides is whether
+  that one command has a quoted argument with a space inside it: `grep User`, `grep 'User'` and
+  `rg "User" -g "*.rb"` are symbol searches, while `grep 'GROUP BY total'` and
+  `grep -rn 'def average_price' app` name phrases and pass. For the `Grep` tool the pattern is a field,
+  so the alternation is taken apart and one branch without a space is enough — `User\|Order` is denied,
+  `SCAN orders\|USING INDEX` is not. The shape of the name is not checked: an anchor, a word boundary or
+  an escaped dot do not stop a name from being one. For `sed`, `awk` and `perl` the addressing decides —
+  `/User/` is a search, `'10,20p'` is reading a file.
+- **One deny per session.** `PostToolUse` on `LSP` writes an empty mark, `$TMPDIR/lsp-seen.<session>`,
+  and from then until the session ends the hook exits silently on everything. Any call counts: a query
+  by name, a request by cursor position, a call that came back empty. What matters is that the tool was
+  reached — an empty answer means the name is not in the index, and text search for it is legitimate.
+  The mark lives in the temp directory and dies with it, so the next session starts strict again.
+
 ## Requirements
 
 | What | Minimum | What happens below it |
