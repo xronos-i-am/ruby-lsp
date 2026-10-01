@@ -42,8 +42,8 @@ official plugin goes:
 claude plugin disable ruby-lsp@claude-plugins-official
 ```
 
-Report which declarations were enabled and which one you turned off. The collision is quiet: apart
-from a row in the `/plugin` **Errors** tab, nothing announces it.
+The collision is quiet: apart from a row in the `/plugin` **Errors** tab, nothing announces it — so
+this step's line in the report names the declaration you turned off.
 
 ## 3. The declaration reached Claude Code
 
@@ -65,8 +65,9 @@ After an install, `/reload-plugins` or a restart.
    and checking them here would only re-derive what the file already says.
 2. Leave the last section empty. It is for blind spots specific to this project, and those get written
    down when somebody meets one — not hunted for now.
-3. Tell the person the file is theirs from here on: the package never overwrites it, and the hook's
-   deny text names it as soon as it exists. Committing it is their call, not a step of this run.
+3. The file belongs to the project from here on: the package never overwrites it, and the hook's deny
+   text names it as soon as it exists. That is what the closing line of the report says, and
+   committing the file is the person's call, not a step of this run.
 
 ## 5. The hook gets checked in the next session
 
@@ -81,6 +82,31 @@ a plugin install:
 ```sh
 printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"Grep","session_id":"smoke","tool_input":{"pattern":"User"}}' | .claude/hooks/ruby-lsp/hooks/lsp-hint.sh
 ```
+
+## The report is one line per step
+
+A checklist run reports like a checklist: the step's number and name, the outcome, and the one detail
+that shows the outcome was observed rather than assumed. Nothing else — no retelling of what a check
+means, no command output that said nothing, no closing summary of a report the person has just read.
+Write the lines in the language of the session; `ok` below stands for whatever that language says.
+
+```text
+1. The server starts — ok (documentSymbol on app/models/user.rb, 14 symbols)
+2. One server claims .rb — ok (the official plugin was on, disabled it)
+3. The declaration reached Claude Code — ok (.claude/skills/apm-lsp/…/plugin.json)
+4. The notes — written to docs/agents/ruby-lsp.md
+5. The hook — checked in the next session: `grep for User`
+```
+
+A step that found trouble gets the same single line, with what is wrong in place of `ok`: what to do
+about it belongs in the next sentence only if the person cannot work it out from that line. Step 1 is
+the one that ends the run instead of continuing it.
+
+The last thing printed is the file, as a link, with one sentence of what it is:
+
+> [docs/agents/ruby-lsp.md](docs/agents/ruby-lsp.md) — what this project's `ruby-lsp` does not
+> resolve, and the hook's deny text points at it. The file is the repository's own: edit it as new
+> blind spots turn up, the package never overwrites it.
 
 Done when the server answered one `LSP` call, one server claims `.rb`, and `docs/agents/ruby-lsp.md`
 is in place.
