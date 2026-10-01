@@ -134,7 +134,7 @@ notes=docs/agents/ruby-lsp.md
 if [[ -f $root/$notes ]]; then
   where="What not to expect from the server — $notes"
 else
-  where="The server's blind spots are not written down here yet: the skill setup-ruby-lsp puts them in $notes"
+  where="The server's blind spots are not written down here yet: the skill ruby-lsp-setup puts them in $notes"
 fi
 
 # A deny, not a comment: additionalContext would arrive together with the output of that very grep

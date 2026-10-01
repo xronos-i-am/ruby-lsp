@@ -20,7 +20,7 @@ tells Claude Code how to start the binary you already have.
 | --- | --- |
 | The server declaration, `lspServers.ruby-lsp` | Claude Code starts your `ruby-lsp` binary, and the `LSP` tool answers for `.rb`, `.rake`, `.gemspec`, `.ru` and `.erb`: definitions, references, hover, document and workspace symbols |
 | `hooks/lsp-hint.sh` | `grep`, `rg`, `ack`, `ag`, `git log -S`, a `sed`/`awk`/`perl` slash pattern and the `Grep` tool are denied while the pattern is a bare symbol name; a quoted phrase passes |
-| `skills/setup-ruby-lsp` | A one-off setup run: checks the server can start, finds a plugin that claims the same extensions, and writes the project's own `docs/agents/ruby-lsp.md` |
+| `skills/ruby-lsp-setup` | A one-off setup run: checks the server can start, finds a plugin that claims the same extensions, and writes the project's own `docs/agents/ruby-lsp.md` |
 
 ## Requirements
 
@@ -85,7 +85,7 @@ Three more conditions, none of which announces itself when unmet:
    [the section below](#turn-off-the-official-ruby-lsp-plugin) says why.
 4. `/reload-plugins`, or start the next session. Hooks are read at session start, so the deny begins
    working in the next session either way.
-5. Run the `setup-ruby-lsp` skill once, and commit the `docs/agents/ruby-lsp.md` it writes.
+5. Run the `ruby-lsp-setup` skill once, and commit the `docs/agents/ruby-lsp.md` it writes.
 
 What lands in the project:
 
@@ -93,7 +93,7 @@ What lands in the project:
 .claude/skills/apm-lsp/.claude-plugin/plugin.json   the server declaration, auto-discovered
 .claude/settings.json                               the hook entries, merged by APM
 .claude/hooks/ruby-lsp/hooks/                  the hook script and its design notes
-.claude/skills/setup-ruby-lsp/                      the setup skill and the seed notes
+.claude/skills/ruby-lsp-setup/                      the setup skill and the seed notes
 ```
 
 APM owns those files and rewrites them on the next install, so edits belong in the package or in the
@@ -150,7 +150,7 @@ project on this route: Claude Code runs the plugin from its own directory and re
 5. **Activate.** `/reload-plugins`, or start the next session.
 
 6. **Check it arrived.** `claude plugin list` prints the plugin with its version, scope and status,
-   and typing `/` shows its skill as `/ruby-lsp:setup-ruby-lsp`. Run that skill once, and commit
+   and typing `/` shows its skill as `/ruby-lsp:ruby-lsp-setup`. Run that skill once, and commit
    the `docs/agents/ruby-lsp.md` it writes.
 
 ## Removal
@@ -212,7 +212,7 @@ machine. That is the whole trade — the server binary is the same gem either wa
 
 The deny text ends by naming `docs/agents/ruby-lsp.md`, and that file belongs to the repository, not
 to this package: what the server fails to resolve depends on the project's gems, on how its files are
-laid out, and on what lies outside the workspace root. The `setup-ruby-lsp` skill seeds the file from
+laid out, and on what lies outside the workspace root. The `ruby-lsp-setup` skill seeds the file from
 a template and the project edits it from there; the package keeps no second copy, so an install never
 overwrites it. While the file is missing, the deny text names the skill instead of a path.
 

@@ -1,5 +1,5 @@
 ---
-name: setup-ruby-lsp
+name: ruby-lsp-setup
 description: "Make the LSP tool actually work in this repository: check that the ruby-lsp server can start, that no other plugin claims the same extensions, and put the server's notes in docs/agents/ruby-lsp.md. Run once after installing the ruby-lsp package."
 disable-model-invocation: true
 ---

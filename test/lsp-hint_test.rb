@@ -226,7 +226,7 @@ class LspHintTest < Minitest::Test
 
   def test_setup_skill_is_named_while_the_notes_are_missing
     Dir.mktmpdir("lsp-project") do |project|
-      assert_includes reason("grep User app", project:), "setup-ruby-lsp"
+      assert_includes reason("grep User app", project:), "ruby-lsp-setup"
     end
   end
 

@@ -150,7 +150,7 @@ the project's gems, on how its files are laid out, and on what lies outside the 
 notes are the project's own file, `docs/agents/ruby-lsp.md`, and the hook names it as soon as it
 exists.
 
-The skill `setup-ruby-lsp` puts the seed there, and the project edits it afterwards; the package
+The skill `ruby-lsp-setup` puts the seed there, and the project edits it afterwards; the package
 keeps no second copy and so overwrites nothing on the next install. While the file is missing, the
 deny text names the skill instead of a path — a pointer into a file that is not there is worse than
 no pointer at all.
