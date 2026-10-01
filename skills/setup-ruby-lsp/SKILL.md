@@ -69,11 +69,11 @@ After an install, `/reload-plugins` or a restart.
    text names it as soon as it exists. That is what the closing line of the report says, and
    committing the file is the person's call, not a step of this run.
 
-## 5. The hook gets checked in the next session
+## The live check belongs to the next session
 
 The hook stays silent for the rest of a session once `LSP` has been called, and step 1 called it. So
-the live check belongs to the next session: type `grep for User` there and expect a deny mentioning
-LSP.
+there is no fifth step to carry out here: the check is something the person does next session, and the
+report hands it to them as its closing line.
 
 Feeding the hook's input to it directly works right away, with the script where the install put it —
 `.claude/hooks/ruby-lsp/hooks/lsp-hint.sh` after an APM install, the plugin's own directory after
@@ -95,18 +95,24 @@ Write the lines in the language of the session; `ok` below stands for whatever t
 2. One server claims .rb — ok (the official plugin was on, disabled it)
 3. The declaration reached Claude Code — ok (.claude/skills/apm-lsp/…/plugin.json)
 4. The notes — written to docs/agents/ruby-lsp.md
-5. The hook — checked in the next session: `grep for User`
 ```
 
 A step that found trouble gets the same single line, with what is wrong in place of `ok`: what to do
 about it belongs in the next sentence only if the person cannot work it out from that line. Step 1 is
 the one that ends the run instead of continuing it.
 
-The last thing printed is the file, as a link, with one sentence of what it is:
+Then the file, as a link, with one sentence of what it is:
 
 > [docs/agents/ruby-lsp.md](docs/agents/ruby-lsp.md) — what this project's `ruby-lsp` does not
 > resolve, and the hook's deny text points at it. The file is the repository's own: edit it as new
 > blind spots turn up, the package never overwrites it.
+
+And the last line of all is the one thing the person has to do themselves, so it is the one line the
+report sets apart — its own paragraph, in bold, after everything else:
+
+> **In the next session, type `grep for User` — a deny naming the `LSP` tool means the hook is
+> alive.** It cannot be checked in this one: step 1 called `LSP`, and that silences the hook until the
+> session ends.
 
 Done when the server answered one `LSP` call, one server claims `.rb`, and `docs/agents/ruby-lsp.md`
 is in place.
