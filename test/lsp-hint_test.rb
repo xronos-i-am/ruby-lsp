@@ -94,6 +94,28 @@ class LspHintTest < Minitest::Test
     assert denied?("echo `grep User app`")
   end
 
+  # A compound line is judged one command at a time. Measured in a live session: a human-readable
+  # label in a neighbouring `echo` — the usual way several commands are glued into one call — was read
+  # as the phrase of the search and silenced the deny
+  def test_label_in_a_neighbouring_command_is_not_the_pattern
+    assert denied?('git grep -c "User" -- . ; echo "---TOTAL FILES---"')
+    assert denied?('grep -rn "User" . ; echo "done here"')
+    assert denied?('echo "=== by application (files) ===" && grep -rn "User" .')
+    assert denied?(%q{echo 'two words' && grep User .})
+  end
+
+  # One searching command in the line is enough, so a phrase search no longer covers a name search
+  # standing next to it
+  def test_phrase_search_does_not_cover_a_symbol_search
+    assert denied?("grep 'two words' . && grep User .")
+  end
+
+  # Quotes are honoured when the line is cut, so a separator inside the pattern cuts nothing
+  def test_separator_inside_quotes_belongs_to_the_pattern
+    assert denied?(%q{grep 'User;Order' .})
+    refute denied?(%q{grep 'a; b' .})
+  end
+
   # ── The git pickaxe ────────────────────────────────────────────────────────────────────────
 
   # Three forms of the flag, one command: the name stands behind a space, behind `=` and flush
@@ -121,6 +143,13 @@ class LspHintTest < Minitest::Test
   def test_scanner_addressed_by_line_number_passes
     refute denied?("sed -n '10,20p' app/models/user.rb")
     refute denied?("sed -n 1,200p README.md")
+  end
+
+  # The addressing is looked for in that command's own quotes: a quoted path in a neighbouring command
+  # is full of slashes and used to read as a slash pattern
+  def test_scanner_reads_only_its_own_arguments
+    refute denied?("echo '/tmp/probe/' && sed -n '10,20p' app/models/user.rb")
+    assert denied?("echo start ; sed -n '/User/p' app/models/user.rb")
   end
 
   # ── Text search the hook leaves alone ──────────────────────────────────────────────────────

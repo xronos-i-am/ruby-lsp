@@ -52,7 +52,9 @@ processor with a slash pattern. Which argument is the pattern, the hook does not
 Argument parsing was needed for exactly two things: to tell a phrase from a symbol, and to name the
 symbols in the deny text. The names are no longer named — the agent wrote them itself, and the hook
 speaks once per session — so the parsing went away whole: fifty lines with a list of
-value-carrying flags, three loops over words, and quote-aware word splitting.
+value-carrying flags, three loops over words, and quote-aware word splitting. What came back later is
+quote-aware scanning of a different kind, and for a different purpose: cutting the line into commands,
+which the next section is about.
 
 A system library does not help here, and that was measured: `getopt` parses by a specification you
 write yourself and knows nothing about `rg`, `ack` or `git -S`; ruby's bundled `Shellwords` gives
@@ -60,10 +62,34 @@ only quote-aware splitting and leaves the question "which argument is the patter
 The one thing that knows for certain is `grep` itself, and it cannot be asked: the deny has to
 happen before the run.
 
-The cost is accuracy on a compound command: `grep 'two words' . && grep Name .` passes whole,
-because one of the arguments in it is a quoted phrase. Looking for the target inside the command would
-cost a disk walk on every grep and would still be approximate, while a false pass here costs one
+What is still not worked out is which argument of a command is the pattern. Looking for the target on
+disk would cost a walk on every grep and would still be approximate, while a false pass costs one
 un-denied grep: the hook goes on waiting for the next one.
+
+## The line is judged one command at a time
+
+A compound call is cut into commands first, and every question below is asked of one command's own
+arguments. The cut happens at `;`, `|`, `&`, `(`, `)`, a backtick and a newline, with quotes honoured
+— so a separator inside a pattern, `grep 'a; b' .`, cuts nothing. A regexp cannot do it, because it
+cannot carry the quote state, so the cut is a loop; and the loop jumps from one special character to
+the next with `${rest%%[…]*}` instead of walking character by character. That is not a flourish but a
+measurement: the hook runs on every `Bash` call, and a walk over a 12 000-character heredoc body cost
+1.2 s per call against 5 ms for the jump.
+
+Judging the whole line instead was a hole, and a wide one: a human-readable label in a neighbouring
+command answered the phrase question for the search. `grep -rn "User" . ; echo "done here"` and
+`git grep -c "User" -- . ; echo "---TOTAL FILES---"` both passed, because somewhere in the line there
+were quotes with a space between them. Gluing several commands into one call and labelling their output
+is ordinary practice, so the deny was lost exactly where an agent is most comfortable.
+
+The same cut earns accuracy the earlier layout had written off as its price: `grep 'two words' . &&
+grep Name .` is now denied for the second command, while the phrase search in the first one is nobody's
+business. One searching command in the line is enough, and the hook stops at it.
+
+What still passes is a search inside a double-quoted command substitution — `echo "$(grep Name .)"`
+stays silent, because the quoted span is one argument with spaces inside it. Cutting inside double
+quotes would buy that case at the price of false denials on `grep "cost $(price) x" .`, and a false
+deny is the more expensive of the two mistakes.
 
 ## Quotes with a space inside give a phrase away
 
@@ -71,7 +97,8 @@ un-denied grep: the hook goes on waiting for the next one.
 thing that decides: a quote on its own belongs to the command, not to the pattern, so `grep 'User'`
 is denied just like `grep User`.
 
-The space is looked for inside one argument, and the arguments are pulled out in pairs from the left
+The space is looked for inside one argument of that one command, and the arguments are pulled out in
+pairs from the left
 — `grep -oE "'[^']*'|\"[^\"]*\""`, the same way the line-processor branch does it. A regexp over the
 whole command line cannot tell a pair of quotes from a gap between two of them: for
 `grep "User" --include="*.rb"` it matched the closing quote of the name together with the opening
@@ -88,9 +115,11 @@ proper name" lost the deny on each of them.
 ## A line processor is told apart by its addressing
 
 A slash pattern is a search, a line number is a read, and `sed -n '10,20p'` beats any LSP call at a
-range. The pattern is looked for inside quotes only: a path argument is full of slashes and would
-match outside them every time. The quotes-with-a-space rule is not applied to this branch —
-otherwise `perl -ne 'print if /Name/'` would walk past the deny.
+range. The pattern is looked for inside the quotes of that command only: a path argument is full of
+slashes and would match outside them every time, and a quoted path in a neighbouring command —
+`echo '/tmp/probe/' && sed -n '10,20p' f.rb` — used to read as a slash pattern. The
+quotes-with-a-space rule is not applied to this branch — otherwise `perl -ne 'print if /Name/'` would
+walk past the deny.
 
 ## The coverage was measured, not enumerated
 
@@ -107,7 +136,9 @@ what looked covered:
 - `sed`, `awk`, `perl` — they search no worse than grep, and the same commands are used to read a
   file;
 - `grep "Name" --include="*.rb"` — a second quoted argument looked like a phrase to a regexp that
-  read the whole command line instead of the arguments one by one.
+  read the whole command line instead of the arguments one by one;
+- `grep -rn "Name" . ; echo "done here"` — a label in a neighbouring command answered the phrase
+  question for the search, until the line began to be cut into commands.
 
 Everything that stands flush is collected in one `start` class: the hole was one, and writing it off
 would have taken three patterns.
@@ -165,4 +196,7 @@ Two rakes when editing the hook itself:
   `|| exit` and `if`;
 - the hook reads the whole command line, so a file with such a grep in its text is written with the
   `Write` tool: a heredoc is part of the command, and the write denies itself until the session has
-  called LSP.
+  called LSP;
+- the hook runs on every `Bash` call, so anything that touches the command line is measured on a long
+  one: a heredoc body of a few thousand characters turns a per-character loop into a second of latency
+  on every call.

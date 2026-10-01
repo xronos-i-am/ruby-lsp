@@ -46,6 +46,49 @@ names_a_phrase() {
   return 1
 }
 
+# One command per line, cut at the shell separators. Quotes are honoured, so a separator inside a
+# pattern — `grep 'a; b' .` — does not cut anything. Everything below asks its questions of one
+# command's own arguments: judged by the whole line, a label in a neighbouring command answered them
+# instead, and `grep -rn "User" . ; echo "done here"` passed for a phrase search
+commands() {
+  local rest=$1 part='' head char inside
+  # A jump from one special character to the next, not a walk over every one: a heredoc body is
+  # thousands of characters, and walking them cost a second on every call
+  local special=$'[;|&()`\x27"\\\\\n]'
+  while [[ -n $rest ]]; do
+    head=${rest%%$special*}
+    if [[ $head == "$rest" ]]; then
+      part+=$rest
+      break
+    fi
+    part+=$head
+    char=${rest:${#head}:1}
+    rest=${rest:${#head}+1}
+    case $char in
+      \'|\")
+        # A quoted span is copied over whole, with its separators: they belong to the pattern
+        inside=${rest%%"$char"*}
+        if [[ $inside == "$rest" ]]; then
+          part+=$char$rest
+          rest=''
+        else
+          part+=$char$inside$char
+          rest=${rest:${#inside}+1}
+        fi
+        ;;
+      '\')
+        part+=$char${rest:0:1}
+        rest=${rest:1}
+        ;;
+      *)
+        printf '%s\n' "$part"
+        part=''
+        ;;
+    esac
+  done
+  printf '%s\n' "$part"
+}
+
 case $tool in
   Grep)
     # The pattern is a field here, and the symbolic form is an alternative without a space:
@@ -65,17 +108,20 @@ case $tool in
     # Argument parsing was there to name the symbols, and the hook speaks once and names none
     command=$(jq -r '.tool_input.command // ""' <<< "$payload")
 
-    if [[ $command =~ $searcher || $command =~ $pickaxe ]]; then
-      ! names_a_phrase "$command" || exit 0
-    elif [[ $command =~ $scanner ]]; then
-      # A line processor both searches and reads; addressing tells them apart: a slash pattern
-      # is a search, a line number is a read. It is looked for inside quotes: a path argument
-      # is full of slashes and would match outside them every time
-      quoted=$(quoted_args "$command")
-      [[ $quoted =~ /[^/]*[A-Za-z_][^/]*/ ]] || exit 0
-    else
-      exit 0
-    fi
+    # One searching command in the line is enough: the others are nobody's business here
+    searching=''
+    while IFS= read -r part; do
+      if [[ $part =~ $searcher || $part =~ $pickaxe ]]; then
+        if ! names_a_phrase "$part"; then searching=yes; break; fi
+      elif [[ $part =~ $scanner ]]; then
+        # A line processor both searches and reads; addressing tells them apart: a slash pattern
+        # is a search, a line number is a read. It is looked for inside quotes: a path argument
+        # is full of slashes and would match outside them every time
+        quoted=$(quoted_args "$part")
+        if [[ $quoted =~ /[^/]*[A-Za-z_][^/]*/ ]]; then searching=yes; break; fi
+      fi
+    done < <(commands "$command")
+    [[ -n $searching ]] || exit 0
     ;;
 
   *) exit 0 ;;
