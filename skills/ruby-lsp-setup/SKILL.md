@@ -11,15 +11,14 @@ the server starts here and which plugin already claims `.rb`. That is what this 
 nothing else.
 
 **This is a fixed checklist, not a survey.** Each step is one or two commands, and the whole run is
-about half a dozen. Nothing here asks you to explore the repository, read its models, or confirm how
-the server behaves: how the server behaves is a property of `ruby-lsp`, the same in every project, and
-it is already written in the notes you are about to copy. Do not re-derive it with `LSP` calls.
+about half a dozen. How the server behaves is a property of `ruby-lsp`, the same in every project, and
+it is already written in the notes you are about to copy, so the run reads neither the repository's
+models nor the server's answers beyond the one call step 1 makes.
 
 **This run writes exactly one file in the project**: `docs/agents/ruby-lsp.md`, in step 4. Everything
-else it produces is a report. Do not touch the repository's instruction file (`AGENTS.md`,
-`CLAUDE.md`), its `Makefile`, its `Gemfile`, or any setup script, and do not add a gem — not even
-`ruby-lsp` itself. How a project installs and documents its tooling is its owner's decision, and a
-setup run that slips a line into it leaves a change nobody asked for.
+else it produces is a report — the instruction file, the `Makefile`, the `Gemfile` and the setup
+scripts stay as they are, and no gem is installed, `ruby-lsp` included. How a project installs and
+documents its tooling is its owner's decision.
 
 ## 1. The server starts
 
@@ -50,8 +49,8 @@ this step's line in the report names the declaration you turned off.
 One check, whichever route installed the package:
 
 - **APM**: `.claude/skills/apm-lsp/.claude-plugin/plugin.json` exists and lists the server. An
-  `.lsp.json` in the project root instead means the APM that wrote it is older than 0.29.1 and wrote a
-  path Claude Code ignores: update APM and install again.
+  `.lsp.json` in the project root instead means the APM that wrote it is below the floor in the
+  README and wrote a path Claude Code ignores: update APM and install again.
 - **Plugin**: `claude plugin list` shows it enabled and without errors.
 
 Either way the plugin is project-scoped, so the session must have accepted the workspace-trust dialog
@@ -60,12 +59,17 @@ After an install, `/reload-plugins` or a restart.
 
 ## 4. The notes become the project's file
 
-1. Copy `ruby-lsp.md` from this skill's folder to `docs/agents/ruby-lsp.md`, unless that file already
-   exists — then leave it alone. Copy it as it is: its claims are the server's, not this project's,
-   and checking them here would only re-derive what the file already says.
-2. Leave the last section empty. It is for blind spots specific to this project, and those get written
+1. Pick the language. This skill's folder holds the same seed twice, `ruby-lsp.md` and
+   `ruby-lsp.ru.md`; the one to copy is the one written in the language of the repository's own
+   instruction file — `AGENTS.md` or `CLAUDE.md`, whichever it has, and the language of this session
+   when it has neither. One look at that file, not a survey of the repository.
+2. Copy the seed you picked to `docs/agents/ruby-lsp.md` — that path either way, because the hook's
+   deny text names it — unless the file already exists, and then leave it alone. Copy it as it is: its
+   claims are the server's, not this project's, and checking them here would only re-derive what the
+   file already says.
+3. Leave the last section empty. It is for blind spots specific to this project, and those get written
    down when somebody meets one — not hunted for now.
-3. The file belongs to the project from here on: the package never overwrites it, and the hook's deny
+4. The file belongs to the project from here on: the package never overwrites it, and the hook's deny
    text names it as soon as it exists. That is what the closing line of the report says, and
    committing the file is the person's call, not a step of this run.
 
@@ -75,13 +79,9 @@ The hook stays silent for the rest of a session once `LSP` has been called, and 
 there is no fifth step to carry out here: the check is something the person does next session, and the
 report hands it to them as its closing line.
 
-Feeding the hook's input to it directly works right away, with the script where the install put it —
-`.claude/hooks/ruby-lsp/hooks/lsp-hint.sh` after an APM install, the plugin's own directory after
-a plugin install:
-
-```sh
-printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"Grep","session_id":"smoke","tool_input":{"pattern":"User"}}' | .claude/hooks/ruby-lsp/hooks/lsp-hint.sh
-```
+Feeding the hook its input directly works right away; the payload is in `lsp-hint.md`, next to the
+script where the install put it — `.claude/hooks/ruby-lsp/hooks/` after an APM install, the plugin's
+own directory after a plugin install.
 
 ## The report is one line per step
 
@@ -94,7 +94,7 @@ Write the lines in the language of the session; `ok` below stands for whatever t
 1. The server starts — ok (documentSymbol on app/models/user.rb, 14 symbols)
 2. One server claims .rb — ok (the official plugin was on, disabled it)
 3. The declaration reached Claude Code — ok (.claude/skills/apm-lsp/…/plugin.json)
-4. The notes — written to docs/agents/ruby-lsp.md
+4. The notes — written to docs/agents/ruby-lsp.md (the ru seed, CLAUDE.md is in Russian)
 ```
 
 A step that found trouble gets the same single line, with what is wrong in place of `ok`: what to do

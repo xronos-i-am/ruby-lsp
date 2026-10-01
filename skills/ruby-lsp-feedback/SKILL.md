@@ -7,10 +7,9 @@ disable-model-invocation: true
 # Report a session where the LSP tool was not reached
 
 The package has one failure that matters and never announces itself: a symbol name was looked for as
-text, and the `LSP` tool was not asked. Every hole the hook ever had was found exactly this way — in a
-live session, after the search had already walked past the deny — so a session that went wrong is the
-package's only source of coverage. This run turns one such session into an issue text, and sends
-nothing.
+text, and the `LSP` tool was not asked. A hole in the hook shows up only this way — in a live session,
+after the search has already walked past the deny — so a session that went wrong is the package's only
+source of coverage. This run turns one such session into an issue text, and sends nothing.
 
 **The evidence is this session, not the repository.** Which calls were made, whether a deny arrived,
 what `LSP` answered — that lives in the transcript you are holding and nowhere else: the hook keeps no
@@ -28,8 +27,8 @@ further live check. Leave it for last, if at all.
 In this order, from the transcript:
 
 1. The searching calls — the exact command lines, or the exact `Grep` patterns, that went looking for a
-   symbol name. Exact: a quote, a flag and a neighbouring command in the same line have each been the
-   whole difference between a deny and silence.
+   symbol name. Exact: a quote, a flag or a neighbouring command in the same line is the whole
+   difference between a deny and silence.
 2. Whether a deny arrived, and for which of those calls.
 3. Whether `LSP` was called, and what came back: symbols, an empty answer, or no server at all.
 

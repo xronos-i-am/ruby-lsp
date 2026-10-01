@@ -119,7 +119,7 @@ What lands in the project:
 ```
 .claude/skills/apm-lsp/.claude-plugin/plugin.json   the server declaration, auto-discovered
 .claude/settings.json                               the hook entries, merged by APM
-.claude/hooks/ruby-lsp/hooks/                  the hook script and its design notes
+.claude/hooks/ruby-lsp/hooks/                       the hook script and its design notes
 .claude/skills/ruby-lsp-setup/                      the setup skill and the seed notes
 .claude/skills/ruby-lsp-feedback/                   the skill that writes the issue
 ```
@@ -179,8 +179,7 @@ project on this route: Claude Code runs the plugin from its own directory and re
 
 6. **Check it arrived.** `claude plugin list` prints the plugin with its version, scope and status,
    and typing `/` shows its skills as `/ruby-lsp:ruby-lsp-setup` and `/ruby-lsp:ruby-lsp-feedback`.
-   Run the setup one once, and commit
-   the `docs/agents/ruby-lsp.md` it writes.
+   Run the setup one once, and commit the `docs/agents/ruby-lsp.md` it writes.
 
 ## Removal
 
@@ -242,8 +241,8 @@ machine. That is the whole trade — the server binary is the same gem either wa
 The deny text ends by naming `docs/agents/ruby-lsp.md`, and that file belongs to the repository, not
 to this package: what the server fails to resolve depends on the project's gems, on how its files are
 laid out, and on what lies outside the workspace root. The `ruby-lsp-setup` skill seeds the file from
-a template and the project edits it from there; the package keeps no second copy, so an install never
-overwrites it. While the file is missing, the deny text names the skill instead of a path.
+one of its two templates — whichever matches the language of the repository's instruction file — and
+the project edits it from there; the package keeps no second copy, so an install never overwrites it. While the file is missing, the deny text names the skill instead of a path.
 
 That file is the only one the skill writes. It reports what it finds and changes nothing else in the
 repository — not the instruction file, not the `Makefile` or `Gemfile`, and it installs no gem: how a
@@ -257,11 +256,12 @@ test/lsp-hint_test.rb -n /pickaxe/    # cases by a substring of the name
 ```
 
 Neither Bundler nor a framework is needed: minitest comes with ruby, and the hook runs as a process
-with its own `TMPDIR`, so the suite depends on no application and no live session.
+with its own `TMPDIR`, so the suite depends on no application and no live session. It lives outside
+`hooks/` because APM deploys that directory into the consuming project.
 
-How the hook is built and why each decision is the way it is — [`hooks/lsp-hint.md`](hooks/lsp-hint.md).
-Its coverage was gathered by measurement in live sessions, so the test suite is also the inventory of
-what once looked covered and was not.
+What each decision costs and what the hook lets through on purpose —
+[`hooks/lsp-hint.md`](hooks/lsp-hint.md). Every document here comes as a pair, English and `*.ru.md`,
+and the two are edited together.
 
 ## License
 
