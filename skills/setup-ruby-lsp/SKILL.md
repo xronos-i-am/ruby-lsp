@@ -1,6 +1,6 @@
 ---
 name: setup-ruby-lsp
-description: "Make the LSP tool actually work in this repository: check that the ruby-lsp server can start, that no other plugin claims the same extensions, and put the server's notes in docs/agents/ruby-lsp.md. Run once after installing the ruby-lsp-hint package."
+description: "Make the LSP tool actually work in this repository: check that the ruby-lsp server can start, that no other plugin claims the same extensions, and put the server's notes in docs/agents/ruby-lsp.md. Run once after installing the ruby-lsp package."
 disable-model-invocation: true
 ---
 
@@ -33,16 +33,17 @@ setup run that slips a line into it leaves a change nobody asked for.
 
 ## 2. Only one server claims `.rb`
 
-`claude plugin list` — if another enabled plugin declares a Ruby language server (the official
-`ruby-lsp@claude-plugins-official` is the usual one), the extension goes to whichever server
-registered first and the other never starts. Disable the one this repository does not want:
+`claude plugin list` — the official `ruby-lsp@claude-plugins-official` declares the same server as
+this package, so with both enabled they claim the same extensions, whichever registered first serves
+them, and the other is unused. This package's declaration is the one this repository ships, so the
+official plugin goes:
 
 ```sh
 claude plugin disable ruby-lsp@claude-plugins-official
 ```
 
-Say which server stays. The collision is silent: nothing reports it except a tool call that comes back
-with no server.
+Report which declarations were enabled and which one you turned off. The collision is quiet: apart
+from a row in the `/plugin` **Errors** tab, nothing announces it.
 
 ## 3. The declaration reached Claude Code
 
@@ -74,11 +75,11 @@ the live check belongs to the next session: type `grep for User` there and expec
 LSP.
 
 Feeding the hook's input to it directly works right away, with the script where the install put it —
-`.claude/hooks/ruby-lsp-hint/hooks/lsp-hint.sh` after an APM install, the plugin's own directory after
+`.claude/hooks/ruby-lsp/hooks/lsp-hint.sh` after an APM install, the plugin's own directory after
 a plugin install:
 
 ```sh
-printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"Grep","session_id":"smoke","tool_input":{"pattern":"User"}}' | .claude/hooks/ruby-lsp-hint/hooks/lsp-hint.sh
+printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"Grep","session_id":"smoke","tool_input":{"pattern":"User"}}' | .claude/hooks/ruby-lsp/hooks/lsp-hint.sh
 ```
 
 Done when the server answered one `LSP` call, one server claims `.rb`, and `docs/agents/ruby-lsp.md`

@@ -1,4 +1,4 @@
-# ruby-lsp-hint
+# ruby-lsp
 
 [По-русски](README.ru.md)
 
@@ -40,8 +40,11 @@ claude --version
 apm --version && apm self-update    # the APM route only
 ```
 
-Two more conditions, neither of which announces itself when unmet:
+Three more conditions, none of which announces itself when unmet:
 
+- **Anthropic's official `ruby-lsp` plugin has to be off.** It declares the same server as this
+  package, so with both enabled two declarations claim the same extensions and one of them is never
+  used. [Turn off the official plugin](#turn-off-the-official-ruby-lsp-plugin) has the command.
 - **Declare the gem where a routine command restores it** — a development group of your `Gemfile` —
   rather than installing it by hand:
 
@@ -57,6 +60,11 @@ Two more conditions, neither of which announces itself when unmet:
   version's set and the server stops starting. `bundle install` brings it back after a version bump,
   a hand-installed gem does not. The failure is silent — Claude Code shuts a server down after three
   failed starts and does not try again, so the only symptom is an `LSP` call that finds no server.
+
+  A project with no `Gemfile` installs it globally instead, `gem install ruby-lsp`, and writes that
+  down where its setup is described. The server is [Shopify's
+  ruby-lsp](https://github.com/Shopify/ruby-lsp); its [documentation](https://shopify.github.io/ruby-lsp/)
+  covers the addons, the `.ruby-lsp/` bundle it generates, and the editor features behind each request.
 - **A project-scope plugin needs workspace trust and a session started at the repository root.** It
   does not load from a subdirectory, and it does not load until you accept the trust dialog for the
   folder.
@@ -69,20 +77,22 @@ Two more conditions, neither of which announces itself when unmet:
    # apm.yml
    dependencies:
      apm:
-       - xronos-i-am/ruby-lsp-hint
+       - xronos-i-am/ruby-lsp
    ```
 
 2. `apm install`. It reports `Configured 1 LSP server` and the hook entries it merged.
-3. `/reload-plugins`, or start the next session. Hooks are read at session start, so the deny begins
+3. Turn the official plugin off if it is on — `claude plugin list` says, and
+   [the section below](#turn-off-the-official-ruby-lsp-plugin) says why.
+4. `/reload-plugins`, or start the next session. Hooks are read at session start, so the deny begins
    working in the next session either way.
-4. Run the `setup-ruby-lsp` skill once, and commit the `docs/agents/ruby-lsp.md` it writes.
+5. Run the `setup-ruby-lsp` skill once, and commit the `docs/agents/ruby-lsp.md` it writes.
 
 What lands in the project:
 
 ```
 .claude/skills/apm-lsp/.claude-plugin/plugin.json   the server declaration, auto-discovered
 .claude/settings.json                               the hook entries, merged by APM
-.claude/hooks/ruby-lsp-hint/hooks/                  the hook script and its design notes
+.claude/hooks/ruby-lsp/hooks/                  the hook script and its design notes
 .claude/skills/setup-ruby-lsp/                      the setup skill and the seed notes
 ```
 
@@ -98,10 +108,10 @@ project on this route: Claude Code runs the plugin from its own directory and re
 1. **Add the marketplace.** In your shell:
 
    ```sh
-   claude plugin marketplace add xronos-i-am/ruby-lsp-hint
+   claude plugin marketplace add xronos-i-am/ruby-lsp
    ```
 
-   In a session the same source works as `/plugin marketplace add xronos-i-am/ruby-lsp-hint`. Add
+   In a session the same source works as `/plugin marketplace add xronos-i-am/ruby-lsp`. Add
    `#<ref>` to pin a branch or tag. While the repository is private, Claude Code clones it with the
    git credentials already on your machine and never prompts: for the `owner/repo` shorthand it
    probes whether your SSH key authenticates to `github.com` and clones over SSH when it does.
@@ -110,38 +120,51 @@ project on this route: Claude Code runs the plugin from its own directory and re
    machine:
 
    ```sh
-   claude plugin install ruby-lsp-hint@xronos-i-am                   # you, every project
-   claude plugin install ruby-lsp-hint@xronos-i-am --scope project   # everyone in this repository
-   claude plugin install ruby-lsp-hint@xronos-i-am --scope local     # you, this repository only
+   claude plugin install ruby-lsp@xronos-i-am                   # you, every project
+   claude plugin install ruby-lsp@xronos-i-am --scope project   # everyone in this repository
+   claude plugin install ruby-lsp@xronos-i-am --scope local     # you, this repository only
    ```
 
-   In a session, `/plugin install ruby-lsp-hint@xronos-i-am` opens the plugin's details so you can
+   In a session, `/plugin install ruby-lsp@xronos-i-am` opens the plugin's details so you can
    review what it adds and pick the scope there. On Claude Code 2.1.275 or later the two steps
    collapse into one, with the plugin named without its `@marketplace` half:
 
    ```text
-   /plugin install ruby-lsp-hint --marketplace xronos-i-am/ruby-lsp-hint
+   /plugin install ruby-lsp --marketplace xronos-i-am/ruby-lsp
    ```
 
 3. **For a repository, mind what `--scope project` does and does not do.** It writes the entry to
    `.claude/settings.json`, which you commit, and that turns the plugin on for your collaborators —
    but it does not download it to their machines. Each of them runs the install command once too.
 
-4. **Activate.** `/reload-plugins`, or start the next session.
+4. **Turn the official plugin off** if it is on: it declares the same server, and
+   [the section below](#turn-off-the-official-ruby-lsp-plugin) says what happens when both are on.
 
-5. **Check it arrived.** `claude plugin list` prints the plugin with its version, scope and status,
-   and typing `/` shows its skill as `/ruby-lsp-hint:setup-ruby-lsp`. Run that skill once, and commit
+5. **Activate.** `/reload-plugins`, or start the next session.
+
+6. **Check it arrived.** `claude plugin list` prints the plugin with its version, scope and status,
+   and typing `/` shows its skill as `/ruby-lsp:setup-ruby-lsp`. Run that skill once, and commit
    the `docs/agents/ruby-lsp.md` it writes.
 
-## One server per extension
-
-If another enabled plugin declares a Ruby language server — `ruby-lsp@claude-plugins-official` is the
-common one — the extension goes to whichever server registered first and the other never starts.
-Nothing reports the collision. Disable the one you do not want:
+## Turn off the official ruby-lsp plugin
 
 ```sh
 claude plugin disable ruby-lsp@claude-plugins-official
 ```
+
+`ruby-lsp@claude-plugins-official` is a declaration, not a server: its plugin directory holds a
+LICENSE and a README, and everything else is the `lspServers` block in the marketplace entry. This
+package declares the same thing — the same `ruby-lsp` command, the same five extensions — so the two
+do not complement each other, they compete for `.rb`.
+
+With both enabled, whichever registered first serves those files and the other is not used for them.
+The `/plugin` **Errors** tab shows `LSP server "ruby-lsp" is not used for .rb files`, nothing else
+reports it, and which of the two answered a given call cannot be told apart. `claude plugin list`
+shows what is enabled.
+
+What this package gives in its place is where the declaration lives: in the repository, in `apm.yml`,
+so `apm install` restores it on any machine, while the official plugin is installed machine by
+machine. That is the whole trade — the server binary is the same gem either way.
 
 ## The project's notes are the project's file
 

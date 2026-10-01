@@ -1,10 +1,10 @@
 {
-  "name": "ruby-lsp-hint",
+  "name": "ruby-lsp",
   "displayName": "Ruby LSP for Claude Code",
   "version": "0.1.0",
   "description": "Declares the ruby-lsp language server and denies symbol-name text search until the session has asked the LSP tool",
   "author": { "name": "Sergei Malykh" },
-  "repository": "https://github.com/xronos-i-am/ruby-lsp-hint",
+  "repository": "https://github.com/xronos-i-am/ruby-lsp",
   "license": "MIT",
   "keywords": ["ruby", "ruby-lsp", "lsp", "navigation", "hooks"],
   "lspServers": {
