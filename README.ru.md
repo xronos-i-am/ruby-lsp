@@ -144,6 +144,41 @@ apm --version && apm self-update    # только при установке ч�
    по `/` виден его скилл как `/ruby-lsp:setup-ruby-lsp`. Выполните этот скилл один раз и
    закоммитьте написанный им `docs/agents/ruby-lsp.md`.
 
+## Удаление
+
+На пути APM это две команды, и вторая не необязательна:
+
+```sh
+apm uninstall xronos-i-am/ruby-lsp
+apm install
+```
+
+`apm uninstall` убирает запись из `apm.yml`, копию из `apm_modules/`, выложенные файлы хука и скилла
+из `.claude/` и влитые им строки хука из `.claude/settings.json`. Чего он не убирает — объявления
+сервера: на APM 0.32.0 он заканчивается строкой `Uninstall incomplete: … LSP cleanup failed`, а
+`.claude/skills/apm-lsp/.claude-plugin/plugin.json` и `apm.lock.yaml` по-прежнему объявляют
+`ruby-lsp`. Следующий `apm install` это сверяет — `Removed 1 stale LSP server (ruby-lsp)` — и уносит
+заодно каталог `apm-lsp`. Пропустите этот шаг, и получится единственное сочетание, о котором ничего
+не сообщает: хука нет, а сервер продолжает подниматься. Строка `apm_modules/`, добавленная установкой
+в `.gitignore`, остаётся в любом случае.
+
+`--dry-run` печатает план удаления, ничего не меняя, а `-g` удаляет пакет, поставленный в
+пользовательскую область `~/.apm/`, а не в проект.
+
+На пути плагина область указывается явно: `uninstall` по умолчанию работает с `user`, а запись,
+которой плагин включён для репозитория, лежит в `.claude/settings.json`.
+
+```sh
+claude plugin uninstall ruby-lsp@xronos-i-am --scope project
+claude plugin marketplace remove xronos-i-am                   # когда маркетплейсом не пользуется ни один плагин
+```
+
+В проект на этом пути ничего не копировалось, так что убирать больше нечего.
+
+Две вещи остаются намеренно, каким бы путём вы ни шли: `docs/agents/ruby-lsp.md` — файл самого
+репозитория, пакету его удалять не положено, а официальный плагин остаётся выключенным, пока вы не
+включите его обратно: `claude plugin enable ruby-lsp@claude-plugins-official`.
+
 ## Выключите официальный плагин ruby-lsp
 
 ```sh

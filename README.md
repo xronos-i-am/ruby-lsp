@@ -146,6 +146,41 @@ project on this route: Claude Code runs the plugin from its own directory and re
    and typing `/` shows its skill as `/ruby-lsp:setup-ruby-lsp`. Run that skill once, and commit
    the `docs/agents/ruby-lsp.md` it writes.
 
+## Removal
+
+The APM route is two commands, and the second one is not optional:
+
+```sh
+apm uninstall xronos-i-am/ruby-lsp
+apm install
+```
+
+`apm uninstall` takes the entry out of `apm.yml`, the copy out of `apm_modules/`, the deployed hook
+and skill files out of `.claude/`, and the hook entries it had merged out of `.claude/settings.json`.
+What it leaves behind is the server declaration: on APM 0.32.0 it ends with
+`Uninstall incomplete: … LSP cleanup failed`, and `.claude/skills/apm-lsp/.claude-plugin/plugin.json`
+still declares `ruby-lsp`, as does `apm.lock.yaml`. The `apm install` that follows reconciles it —
+`Removed 1 stale LSP server (ruby-lsp)` — and removes the `apm-lsp` directory with it. Skip that step
+and the hook is gone while the server keeps starting: the one combination nothing reports. The
+`apm_modules/` line the install added to `.gitignore` stays either way.
+
+`--dry-run` prints the removal plan without touching anything, and `-g` removes a package installed
+into user scope, `~/.apm/`, instead of the project's.
+
+On the plugin route the scope is spelled out, because `uninstall` defaults to `user` while the entry
+that makes the plugin a repository's own sits in `.claude/settings.json`:
+
+```sh
+claude plugin uninstall ruby-lsp@xronos-i-am --scope project
+claude plugin marketplace remove xronos-i-am                   # once no plugin is left using it
+```
+
+Nothing was copied into the project on that route, so there is nothing else to clean up.
+
+Two things stay behind on purpose, whichever route you used: `docs/agents/ruby-lsp.md` is the
+repository's own file and was never the package's to delete, and the official plugin stays disabled
+until you turn it back on with `claude plugin enable ruby-lsp@claude-plugins-official`.
+
 ## Turn off the official ruby-lsp plugin
 
 ```sh
