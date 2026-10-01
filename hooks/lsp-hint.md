@@ -104,10 +104,10 @@ would have taken three patterns.
 
 ## The notes the deny text points at belong to the project
 
-What the server fails to resolve is a property of the project as much as of the server: which gems
-build constants at runtime, which code is reachable through symlinks, where the generated schema
-lives. So the notes are the project's own file, `docs/agents/ruby-lsp.md`, and the hook names it as
-soon as it exists.
+What the server fails to resolve is a property of the project as much as of the server: it depends on
+the project's gems, on how its files are laid out, and on what lies outside the workspace root. So the
+notes are the project's own file, `docs/agents/ruby-lsp.md`, and the hook names it as soon as it
+exists.
 
 The skill `setup-ruby-lsp` puts the seed there, and the project edits it afterwards; the package
 keeps no second copy and so overwrites nothing on the next install. While the file is missing, the

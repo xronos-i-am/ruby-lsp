@@ -6,19 +6,27 @@ through text search. Below is only what you would not expect from the server.
 ## An empty answer on the first call means the index is not built yet
 
 The first `findReferences` or `workspaceSymbol` of a session answers with an empty list where a
-minute later it returns dozens of references. An empty answer is therefore rechecked by a repeat,
-not explained by the position. A "not found" on the repeat means the symbol is not in the index — not
-that it is absent from the code, and not that the question was wrong.
+minute later it returns dozens of references. An empty answer is therefore rechecked by a repeat, not
+explained by the position. A "not found" on the repeat means the symbol is not in the index — not that
+it is absent from the code, and not that the question was wrong.
 
-## The server knows only this repository's code
+## The index holds the code under the workspace root, and nothing else
 
-Gems are not indexed and no framework addon is wired in, so everything a library defines for you
-resolves to nothing: an ActiveRecord `where`, an `update!`, a scope. Constants that a gem builds at
-runtime disappear the same way — by a class name the server returns only the constants written by
-hand in that file.
+The server indexes the directory the session started in. Code outside it, and code in gems, is not
+there: a question about it comes back empty exactly as if the symbol did not exist. A list of
+references collected this way can be complete only for what the root covers, which is worth saying
+out loud when reporting one.
 
-For framework dynamics go to the generated schema dump and to the class itself; for a set of values
-go to the declaration that generates them.
+An addon adds part of what the gems would have given — `ruby-lsp` has them per framework, and one may
+be active here. So look at which addons are installed before concluding anything from an empty answer:
+what resolves and what does not depends on them.
+
+## Constants built at runtime are missing, and the miss looks like an answer
+
+Metaprogramming that defines constants when the code runs leaves nothing for the server to index: by a
+class name it returns only the constants written by hand in that file. A position request on such a
+constant does not say "not found" either — it lands on the first line of the class, which looks like an
+answer and is not. For the set of values, go to the declaration that generates them.
 
 ## `hover` returns no body
 
@@ -30,16 +38,10 @@ comment above the definition is not in the answer, so the "why" is read from the
 A query made of a single class name comes back with a dozen and a half symbols, including unrelated
 methods and namespaces. The list is read as candidates, not as an answer.
 
-## One file answers with several paths when it is reachable through more than one
-
-Where code is shared by symlink, the server sees the same file through every path: one definition
-comes back as several results, and two references to a method turn into twice as many. Those are
-several names of one inode, not several copies — the count is read divided by the number of paths,
-and the edit goes to the real file.
-
 ## This repository's own blind spots
 
-<!-- Written by the setup-ruby-lsp skill as a seed. Check every claim above against this repository
-     and keep here what is true only for it: which gems build constants at runtime, which code is
-     reachable through symlinks, where the generated schema lives, which directories the server does
-     not see at all. A claim that was not checked against a live LSP call does not belong here. -->
+<!-- Empty on purpose, and correct that way until somebody meets one. Everything above is true of the
+     server in any project; this section is for what is true of this one — the kind of thing that only
+     shows up in use, such as a file reachable through more than one path, a directory outside the
+     workspace root, or a gem that builds its constants at runtime. Write one down when you run into
+     it, together with the call that showed it; don't go hunting for them. -->

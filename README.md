@@ -146,11 +146,14 @@ claude plugin disable ruby-lsp@claude-plugins-official
 ## The project's notes are the project's file
 
 The deny text ends by naming `docs/agents/ruby-lsp.md`, and that file belongs to the repository, not
-to this package: what the server fails to resolve depends on which gems build constants at runtime,
-which code is reachable through symlinks, where the generated schema lives. The `setup-ruby-lsp`
-skill seeds the file from a template and the project edits it from there; the package keeps no second
-copy, so an install never overwrites it. While the file is missing, the deny text names the skill
-instead of a path.
+to this package: what the server fails to resolve depends on the project's gems, on how its files are
+laid out, and on what lies outside the workspace root. The `setup-ruby-lsp` skill seeds the file from
+a template and the project edits it from there; the package keeps no second copy, so an install never
+overwrites it. While the file is missing, the deny text names the skill instead of a path.
+
+That file is the only one the skill writes. It reports what it finds and changes nothing else in the
+repository — not the instruction file, not the `Makefile` or `Gemfile`, and it installs no gem: how a
+project sets up and documents its tooling is a decision for whoever owns it.
 
 ## Development
 
