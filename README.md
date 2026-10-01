@@ -2,251 +2,156 @@
 
 [По-русски](README.ru.md)
 
-Ruby code intelligence for Claude Code as an installable package: it declares the `ruby-lsp` language
-server, and it denies text search for a symbol name until the session has asked the `LSP` tool at
-least once.
+Ruby language server for Claude Code: code navigation and analysis.
 
-Two halves of one habit. Declaring the server makes the `LSP` tool answer; the hook is what makes an
-agent reach for it, because a pointer in `CLAUDE.md` loses to the reflex of typing `grep`. The deny
-fires on the first step of navigation, before the first file is opened, and it lifts for the rest of
-the session as soon as any `LSP` call is made — including a call that comes back empty.
+Anthropic's [official `ruby-lsp` plugin](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/ruby-lsp)
+goes no further than one declaration of the [ruby-lsp](https://github.com/Shopify/ruby-lsp) language server, and that is not enough.
+The system prompt tells the agent to search with `grep`. On top of that the LSP server's tools initialize lazily,
+and the lookup path through them loses to `grep`, which is in the tool list from the first second of the session.
+Because of that the `LSP` tool gets called only if you ask for it in so many words. This plugin solves that problem.
 
-## What the package does
+## Supported Extensions
 
-The language server itself is not part of it: `ruby-lsp` is a gem you install, and the package only
-tells Claude Code how to start the binary you already have.
+`.rb`, `.rake`, `.gemspec`, `.ru`, `.erb`
 
-| Piece | Effect |
-| --- | --- |
-| The server declaration, `lspServers.ruby-lsp` | Claude Code starts your `ruby-lsp` binary, and the `LSP` tool answers for `.rb`, `.rake`, `.gemspec`, `.ru` and `.erb`: definitions, references, hover, document and workspace symbols |
-| `hooks/lsp-hint.sh` | `grep`, `rg`, `ack`, `ag`, `git log -S`, a `sed`/`awk`/`perl` slash pattern and the `Grep` tool are denied while the pattern is a bare symbol name; a quoted phrase passes |
-| `skills/ruby-lsp-setup` | A one-off setup run: checks the server can start, finds a plugin that claims the same extensions, and writes the project's own `docs/agents/ruby-lsp.md` |
-| `skills/ruby-lsp-feedback` | Works out why a session did not reach the `LSP` tool and composes the issue about it, ready to send and sent by nobody but you |
+## Installation
+
+### Via Bundler (recommended)
+
+Add to your Gemfile:
+
+```ruby
+gem 'ruby-lsp', group: :development
+```
+
+Then run:
+
+```sh
+bundle install
+```
+
+Installing through `bundler` keeps `ruby-lsp` on the `ruby` version the project uses.
+Left out of sync, the two drift apart. The failure is
+silent: Claude Code shuts the lsp server down after three failed starts and does not bring it up again.
+
+### Via gem
+
+```sh
+gem install ruby-lsp
+```
 
 ## How it works
 
-Three decisions, and nothing else:
+Which tool gets called is not deterministic in agentic development. The LLM decides for itself whether to call one at any
+given moment. That is why instructions of the "use LSP" kind in CLAUDE.md work poorly. For strict execution
+there are [hooks](https://code.claude.com/docs/en/hooks-guide).
 
-- **What it hangs on.** `PreToolUse` on `Bash` and `Grep` decides, `PostToolUse` on `LSP` silences. A
-  `Bash` line is cut into commands first — at `;`, `|`, `&`, a substitution and a newline, with quotes
-  honoured — and each command is judged on its own arguments: a searcher (`grep`, `egrep`, `fgrep`,
-  `rg`, `ack`, `ag`), the `git log -S`/`-G` pickaxe, or `awk`/`sed`/`perl` addressed by a slash pattern.
-  One searching command in the line is enough. The answer is a deny, not a comment, so the call does not
-  run and the reason arrives where its output would have been.
-- **What counts as a symbol.** The pattern is never pulled out of the command. What decides is whether
-  that one command has a quoted argument with a space inside it: `grep User`, `grep 'User'` and
-  `rg "User" -g "*.rb"` are symbol searches, while `grep 'GROUP BY total'` and
-  `grep -rn 'def average_price' app` name phrases and pass. For the `Grep` tool the pattern is a field,
-  so the alternation is taken apart and one branch without a space is enough — `User\|Order` is denied,
-  `SCAN orders\|USING INDEX` is not. The shape of the name is not checked: an anchor, a word boundary or
-  an escaped dot do not stop a name from being one. For `sed`, `awk` and `perl` the addressing decides —
-  `/User/` is a search, `'10,20p'` is reading a file.
-- **One deny per session.** `PostToolUse` on `LSP` writes an empty mark, `$TMPDIR/lsp-seen.<session>`,
-  and from then until the session ends the hook exits silently on everything. Any call counts: a query
-  by name, a request by cursor position, a call that came back empty. What matters is that the tool was
-  reached — an empty answer means the name is not in the index, and text search for it is legitimate.
-  The mark lives in the temp directory and dies with it, so the next session starts strict again.
+### A hook on the Bash/Grep tools
+
+A `PreToolUse` hook on the Bash and Grep tools runs the `lsp-hint.sh` script. Its job is to
+tell whether the input is a command searching for **symbols** in ruby code. The script has two outcomes: stay silent,
+and then the ordinary text search runs as it is, or refuse the call
+(`permissionDecision: deny`). In the latter case the agent gets the reason for the refusal,
+pointing at the LSP tool and at `docs/agents/ruby-lsp.md`, where the server's quirks in your project are written down.
+
+A `PostToolUse` hook sets a session mark after LSP has been used, and on later `PreToolUse` calls that mark saves
+going through the choice again and again. Our goal is to remind the agent that LSP is there, and doing that twice is not required.
+
+### What counts as a symbol
+
+The `lsp-hint.sh` script, which decides what a symbol is (a class, method or constant name), has to be as simple and as fast as possible.
+Elaborate heuristics or parsing the command's syntax tree are out of the question here. Hence a simple convention:
+**a symbol is text with no space in it**. For instance, `grep User` is a search by
+symbol, which LSP intercepts. `grep 'GROUP BY total'` is what ordinary text search handles.
 
 ## Requirements
 
-| What | Minimum | What happens below it |
-| --- | --- | --- |
-| Ruby | 3.0 | `ruby-lsp`'s own floor |
-| `ruby-lsp` gem | reachable as the `ruby-lsp` command | The `LSP` tool answers nothing and the server reports no error of its own |
-| `jq`, `bash` | any | The hook is a bash script that parses its input with `jq`; without them every hook call fails |
-| Claude Code | 2.1.157 | A plugin directory under `.claude/skills/` is not auto-discovered, so the server declaration an APM install writes is never read |
-| Claude Code | 2.1.275 | Only for the one-command `/plugin install … --marketplace …` form below; the two-step form has no such floor |
-| APM | 0.29.1 | Only for the APM route: older versions write the LSP configuration to a project-root `.lsp.json`, a path Claude Code ignores, and the tool stays silent with nothing to show for it |
+- Ruby >= 3.0 — `ruby-lsp`'s own floor
+- Claude Code >= 2.1.157
+- APM >= 0.29.1 — for installing through APM (optional)
+- `bash` and `jq` — the hook is written in bash and parses its input with `jq`
 
-Check and raise the two that have a floor:
+## Installing the package
+
+If the [official `ruby-lsp` plugin](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/ruby-lsp) is enabled,
+it has to be turned off to rule out a collision of declarations.
+
+### Turn off the official `ruby-lsp`
 
 ```sh
-claude --version
-apm --version && apm self-update    # the APM route only
+claude plugin disable ruby-lsp@claude-plugins-official
 ```
 
-Three more conditions, none of which announces itself when unmet:
+### Add the package through [Agent Package Manager](https://microsoft.github.io/apm/)
 
-- **Anthropic's official `ruby-lsp` plugin has to be off.** It declares the same server as this
-  package, so with both enabled two declarations claim the same extensions and one of them is never
-  used. [Turn off the official plugin](#turn-off-the-official-ruby-lsp-plugin) has the command.
-- **Declare the gem where a routine command restores it** — a development group of your `Gemfile` —
-  rather than installing it by hand:
+Declare the dependency in `apm.yml`:
 
-  ```ruby
-  group :development do
-    gem "ruby-lsp", require: false
-  end
-  ```
-
-  The point is to keep the server on the ruby version the project actually uses. A version manager
-  keeps a separate gem set per ruby version, so a gem installed by hand belongs to whichever version
-  was active at the time: the moment the project moves to another one, the command is gone from that
-  version's set and the server stops starting. `bundle install` brings it back after a version bump,
-  a hand-installed gem does not. The failure is silent — Claude Code shuts a server down after three
-  failed starts and does not try again, so the only symptom is an `LSP` call that finds no server.
-
-  A project with no `Gemfile` installs it globally instead, `gem install ruby-lsp`, and writes that
-  down where its setup is described. The server is [Shopify's
-  ruby-lsp](https://github.com/Shopify/ruby-lsp); its [documentation](https://shopify.github.io/ruby-lsp/)
-  covers the addons, the `.ruby-lsp/` bundle it generates, and the editor features behind each request.
-- **A project-scope plugin needs workspace trust and a session started at the repository root.** It
-  does not load from a subdirectory, and it does not load until you accept the trust dialog for the
-  folder.
-
-## Install with APM
-
-1. Declare the dependency:
-
-   ```yaml
-   # apm.yml
-   dependencies:
-     apm:
-       - xronos-i-am/ruby-lsp
-   ```
-
-2. `apm install`. It reports `Configured 1 LSP server` and the hook entries it merged.
-3. Turn the official plugin off if it is on — `claude plugin list` says, and
-   [the section below](#turn-off-the-official-ruby-lsp-plugin) says why.
-4. `/reload-plugins`, or start the next session. Hooks are read at session start, so the deny begins
-   working in the next session either way.
-5. Run the `ruby-lsp-setup` skill once, and commit the `docs/agents/ruby-lsp.md` it writes. If the
-   server does not start or the `LSP` tool stays silent, `ruby-lsp-feedback` works out why and writes
-   the issue for you to send.
-
-What lands in the project:
-
-```
-.claude/skills/apm-lsp/.claude-plugin/plugin.json   the server declaration, auto-discovered
-.claude/settings.json                               the hook entries, merged by APM
-.claude/hooks/ruby-lsp/hooks/                       the hook script and its design notes
-.claude/skills/ruby-lsp-setup/                      the setup skill and the seed notes
-.claude/skills/ruby-lsp-feedback/                   the skill that writes the issue
+```yaml
+dependencies:
+ apm:
+   - xronos-i-am/ruby-lsp
 ```
 
-APM owns those files and rewrites them on the next install, so edits belong in the package or in the
-project's own files — never in the deployed copies.
+```sh
+apm install
+```
 
-A later `apm install` reproduces `apm.lock.yaml` instead of looking for new commits: with `apm.yml`
-unchanged it does not reach the remote at all. It clones the commit the lockfile records and
-reconciles the deployed copies against it — a hand-edited `.claude/hooks/ruby-lsp/hooks/lsp-hint.sh`
-is restored, a newer revision of the package is not fetched. That one comes from `apm update`
-(`--dry-run` for the plan, `--yes` outside an interactive shell). `apm outdated` does not help here: a
-dependency tracked by branch prints `Latest: -` and `Status: unknown`.
+or
 
-## Install as a Claude Code plugin
+```sh
+apm update
+```
 
-The repository is also a one-plugin marketplace, so APM is not required. Nothing is copied into the
-project on this route: Claude Code runs the plugin from its own directory and resolves
-`${CLAUDE_PLUGIN_ROOT}` itself.
+if `apm` has already locked the package set (`apm.lock.yaml`)
 
-1. **Add the marketplace.** In your shell:
+### Reload the plugins, or open a new session
 
-   ```sh
-   claude plugin marketplace add xronos-i-am/ruby-lsp
-   ```
+```
+/reload-plugins
+```
 
-   In a session the same source works as `/plugin marketplace add xronos-i-am/ruby-lsp`. Add
-   `#<ref>` to pin a branch or tag. While the repository is private, Claude Code clones it with the
-   git credentials already on your machine and never prompts: for the `owner/repo` shorthand it
-   probes whether your SSH key authenticates to `github.com` and clones over SSH when it does.
+### Run the setup in the agent
 
-2. **Install it, choosing who gets it.** From your shell, where the default scope is yourself on this
-   machine:
+Run the `/ruby-lsp-setup` skill once. It checks that the installation is correct, and it also adds the `docs/agents/ruby-lsp.md` notes.
+There you can additionally describe what is particular about using LSP in your own project.
 
-   ```sh
-   claude plugin install ruby-lsp@xronos-i-am                   # you, every project
-   claude plugin install ruby-lsp@xronos-i-am --scope project   # everyone in this repository
-   claude plugin install ruby-lsp@xronos-i-am --scope local     # you, this repository only
-   ```
+### Check that it works
 
-   In a session, `/plugin install ruby-lsp@xronos-i-am` opens the plugin's details so you can
-   review what it adds and pick the scope there. On Claude Code 2.1.275 or later the two steps
-   collapse into one, with the plugin named without its `@marketplace` half:
+Open a new agent session and give it the prompt:
 
-   ```text
-   /plugin install ruby-lsp --marketplace xronos-i-am/ruby-lsp
-   ```
+```prompt
+grep User
+```
 
-3. **For a repository, mind what `--scope project` does and does not do.** It writes the entry to
-   `.claude/settings.json`, which you commit, and that turns the plugin on for your collaborators —
-   but it does not download it to their machines. Each of them runs the install command once too.
+If the setup went well, you will see a mention of LSP, whose call overrides the search with `grep`.
 
-4. **Turn the official plugin off** if it is on: it declares the same server, and
-   [the section below](#turn-off-the-official-ruby-lsp-plugin) says what happens when both are on.
+## Installing as a Claude Code plugin
 
-5. **Activate.** `/reload-plugins`, or start the next session.
+```sh
+claude plugin marketplace add xronos-i-am/ruby-lsp
+claude plugin install ruby-lsp@xronos-i-am --scope project
+```
 
-6. **Check it arrived.** `claude plugin list` prints the plugin with its version, scope and status,
-   and typing `/` shows its skills as `/ruby-lsp:ruby-lsp-setup` and `/ruby-lsp:ruby-lsp-feedback`.
-   Run the setup one once, and commit the `docs/agents/ruby-lsp.md` it writes.
+On this route the skills carry the plugin's prefix: `/ruby-lsp:ruby-lsp-setup` and `/ruby-lsp:ruby-lsp-feedback`.
 
 ## Removal
-
-The APM route is two commands, and the second one is not optional:
 
 ```sh
 apm uninstall xronos-i-am/ruby-lsp
 apm install
 ```
 
-`apm uninstall` takes the entry out of `apm.yml`, the copy out of `apm_modules/`, the deployed hook
-and skill files out of `.claude/`, and the hook entries it had merged out of `.claude/settings.json`.
-What it leaves behind is the server declaration: on APM 0.32.0 it ends with
-`Uninstall incomplete: … LSP cleanup failed`, and `.claude/skills/apm-lsp/.claude-plugin/plugin.json`
-still declares `ruby-lsp`, as does `apm.lock.yaml`. The `apm install` that follows reconciles it —
-`Removed 1 stale LSP server (ruby-lsp)` — and removes the `apm-lsp` directory with it. Skip that step
-and the hook is gone while the server keeps starting: the one combination nothing reports. The
-`apm_modules/` line the install added to `.gitignore` stays either way.
-
-`--dry-run` prints the removal plan without touching anything, and `-g` removes a package installed
-into user scope, `~/.apm/`, instead of the project's.
-
-On the plugin route the scope is spelled out, because `uninstall` defaults to `user` while the entry
-that makes the plugin a repository's own sits in `.claude/settings.json`:
+The second command is not to be skipped here: `apm uninstall` leaves the server declaration behind. The hook is gone, and the server keeps starting.
 
 ```sh
 claude plugin uninstall ruby-lsp@xronos-i-am --scope project
-claude plugin marketplace remove xronos-i-am                   # once no plugin is left using it
+claude plugin marketplace remove xronos-i-am
 ```
 
-Nothing was copied into the project on that route, so there is nothing else to clean up.
+## Troubleshooting
 
-Two things stay behind on purpose, whichever route you used: `docs/agents/ruby-lsp.md` is the
-repository's own file and was never the package's to delete, and the official plugin stays disabled
-until you turn it back on with `claude plugin enable ruby-lsp@claude-plugins-official`.
-
-## Turn off the official ruby-lsp plugin
-
-```sh
-claude plugin disable ruby-lsp@claude-plugins-official
-```
-
-`ruby-lsp@claude-plugins-official` is a declaration, not a server: its plugin directory holds a
-LICENSE and a README, and everything else is the `lspServers` block in the marketplace entry. This
-package declares the same thing — the same `ruby-lsp` command, the same five extensions — so the two
-do not complement each other, they compete for `.rb`.
-
-With both enabled, whichever registered first serves those files and the other is not used for them.
-The `/plugin` **Errors** tab shows `LSP server "ruby-lsp" is not used for .rb files`, nothing else
-reports it, and which of the two answered a given call cannot be told apart. `claude plugin list`
-shows what is enabled.
-
-What this package gives in its place is where the declaration lives: in the repository, in `apm.yml`,
-so `apm install` restores it on any machine, while the official plugin is installed machine by
-machine. That is the whole trade — the server binary is the same gem either way.
-
-## The project's notes are the project's file
-
-The deny text ends by naming `docs/agents/ruby-lsp.md`, and that file belongs to the repository, not
-to this package: what the server fails to resolve depends on the project's gems, on how its files are
-laid out, and on what lies outside the workspace root. The `ruby-lsp-setup` skill seeds the file from
-one of its two templates — whichever matches the language of the repository's instruction file — and
-the project edits it from there; the package keeps no second copy, so an install never overwrites it. While the file is missing, the deny text names the skill instead of a path.
-
-That file is the only one the skill writes. It reports what it finds and changes nothing else in the
-repository — not the instruction file, not the `Makefile` or `Gemfile`, and it installs no gem: how a
-project sets up and documents its tooling is a decision for whoever owns it.
+If you see no mention of the LSP tools in a session, you can run the `/ruby-lsp-feedback` skill to diagnose it.
+It collects what is needed, and that can then go into [issues](https://github.com/xronos-i-am/ruby-lsp/issues).
 
 ## Development
 
@@ -255,13 +160,7 @@ test/lsp-hint_test.rb                 # the whole suite
 test/lsp-hint_test.rb -n /pickaxe/    # cases by a substring of the name
 ```
 
-Neither Bundler nor a framework is needed: minitest comes with ruby, and the hook runs as a process
-with its own `TMPDIR`, so the suite depends on no application and no live session. It lives outside
-`hooks/` because APM deploys that directory into the consuming project.
-
-What each decision costs and what the hook lets through on purpose —
-[`hooks/lsp-hint.md`](hooks/lsp-hint.md). Every document here comes as a pair, English and `*.ru.md`,
-and the two are edited together.
+What each decision costs and what the hook lets through on purpose — [`hooks/lsp-hint.md`](hooks/lsp-hint.md).
 
 ## License
 

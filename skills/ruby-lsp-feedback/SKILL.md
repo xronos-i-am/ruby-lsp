@@ -45,8 +45,8 @@ out of it.
   `claude plugin list` on the plugin route. A fix already pushed upstream is not an issue — on the APM
   route `apm install` reproduces the lockfile, so a project can sit on an old revision until
   `apm update`.
-- `claude --version` and, on the APM route, `apm --version`: both have floors, and the README's
-  requirements table says what happens below them.
+- `claude --version` and, on the APM route, `apm --version`: both have floors, and the README names
+  them.
 - The hook's own entries, in `.claude/settings.json`. Read the file; their absence explains everything
   else at once.
 

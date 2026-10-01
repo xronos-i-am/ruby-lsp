@@ -65,9 +65,9 @@ jump.
 What the server fails to resolve is a property of the project as much as of the server: it depends on
 the project's gems, on how its files are laid out, and on what lies outside the workspace root. So the
 notes are the project's own file, `docs/agents/ruby-lsp.md` — seeded by the `ruby-lsp-setup` skill and
-edited by the project, as the [README](../README.md) describes. The hook names that path as soon as the
-file exists and names the skill while it does not: a pointer into a file that is not there is worse
-than no pointer at all.
+edited by the project from there; the package keeps no second copy, so an install never overwrites it.
+The hook names that path as soon as the file exists and names the skill while it does not: a pointer
+into a file that is not there is worse than no pointer at all.
 
 ## Whether the hook is alive is checked with one phrase
 

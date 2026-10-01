@@ -38,8 +38,7 @@
 - Ревизия пакета: `resolved_commit` в `apm.lock.yaml` на пути APM, версия в `claude plugin list` на пути
   плагина. Починка, уже уехавшая в upstream, — не issue: на пути APM `apm install` воспроизводит лок, так
   что проект может сидеть на старой ревизии до `apm update`.
-- `claude --version` и, на пути APM, `apm --version`: у обоих есть минимумы, и таблица требований в
-  README говорит, что бывает ниже них.
+- `claude --version` и, на пути APM, `apm --version`: у обоих есть минимумы, и README их называет.
 - Строки самого хука в `.claude/settings.json`. Прочитайте файл; их отсутствие объясняет сразу всё
   остальное.
 
