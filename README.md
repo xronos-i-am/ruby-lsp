@@ -11,21 +11,39 @@ agent reach for it, because a pointer in `CLAUDE.md` loses to the reflex of typi
 fires on the first step of navigation, before the first file is opened, and it lifts for the rest of
 the session as soon as any `LSP` call is made — including a call that comes back empty.
 
-## What it gives you
+## What the package does
+
+The language server itself is not part of it: `ruby-lsp` is a gem you install, and the package only
+tells Claude Code how to start the binary you already have.
 
 | Piece | Effect |
 | --- | --- |
-| `lspServers.ruby-lsp` | The `LSP` tool answers for `.rb`, `.rake`, `.gemspec`, `.ru` and `.erb`: definitions, references, hover, document and workspace symbols |
+| The server declaration, `lspServers.ruby-lsp` | Claude Code starts your `ruby-lsp` binary, and the `LSP` tool answers for `.rb`, `.rake`, `.gemspec`, `.ru` and `.erb`: definitions, references, hover, document and workspace symbols |
 | `hooks/lsp-hint.sh` | `grep`, `rg`, `ack`, `ag`, `git log -S`, a `sed`/`awk`/`perl` slash pattern and the `Grep` tool are denied while the pattern is a bare symbol name; a quoted phrase passes |
 | `skills/setup-ruby-lsp` | A one-off setup run: checks the server can start, finds a plugin that claims the same extensions, and writes the project's own `docs/agents/ruby-lsp.md` |
 
-## Prerequisites
+## Requirements
 
-**ruby-lsp.** The package configures the server, it does not install it.
+| What | Minimum | What happens below it |
+| --- | --- | --- |
+| Ruby | 3.0 | `ruby-lsp`'s own floor |
+| `ruby-lsp` gem | reachable as the `ruby-lsp` command | The `LSP` tool answers nothing and the server reports no error of its own |
+| `jq`, `bash` | any | The hook is a bash script that parses its input with `jq`; without them every hook call fails |
+| Claude Code | 2.1.157 | A plugin directory under `.claude/skills/` is not auto-discovered, so the server declaration an APM install writes is never read |
+| Claude Code | 2.1.275 | Only for the one-command `/plugin install … --marketplace …` form below; the two-step form has no such floor |
+| APM | 0.29.1 | Only for the APM route: older versions write the LSP configuration to a project-root `.lsp.json`, a path Claude Code ignores, and the tool stays silent with nothing to show for it |
 
-- Ruby 3.0 or later, and the `ruby-lsp` gem reachable as the `ruby-lsp` command.
-- Declare it where a routine command restores it — a development group of your `Gemfile` — rather than
-  installing it by hand:
+Check and raise the two that have a floor:
+
+```sh
+claude --version
+apm --version && apm self-update    # the APM route only
+```
+
+Two more conditions, neither of which announces itself when unmet:
+
+- **Declare the gem where a routine command restores it** — a development group of your `Gemfile` —
+  rather than installing it by hand:
 
   ```ruby
   group :development do
@@ -33,48 +51,38 @@ the session as soon as any `LSP` call is made — including a call that comes ba
   end
   ```
 
-- If ruby comes from a version manager's shim (mise, rbenv, asdf), the server is started from the
-  workspace root, so that root needs the version file the shim reads. Without it the shim exits with
-  `No version is set for shim`, and Claude Code gives up on a server after three failed starts — the
-  only symptom is an `LSP` call that finds no server.
-- `jq` and `bash` on `PATH`: the hook is a bash script that parses its input with `jq`.
-
-**Claude Code.**
-
-- v2.1.157 or later, which is when a plugin directory under `.claude/skills/` became
-  auto-discoverable. That is how the server declaration reaches Claude Code at project scope, with no
-  `enabledPlugins` entry to maintain.
-- A project-scope plugin loads only after you accept the workspace-trust dialog for the folder, and
-  only when the session's primary working directory is the repository root. Started from a
-  subdirectory, it does not load.
-- `/reload-plugins` (or a restart) after the install; hooks are read at session start, so the deny
-  begins working in the next session.
-
-**APM**, for the APM route: version 0.29.1 or later. Older versions write the LSP configuration to a
-project-root `.lsp.json`, a path Claude Code ignores, and the tool stays silent with nothing to show
-for it.
+  The point is to keep the server on the ruby version the project actually uses. A version manager
+  keeps a separate gem set per ruby version, so a gem installed by hand belongs to whichever version
+  was active at the time: the moment the project moves to another one, the command is gone from that
+  version's set and the server stops starting. `bundle install` brings it back after a version bump,
+  a hand-installed gem does not. The failure is silent — Claude Code shuts a server down after three
+  failed starts and does not try again, so the only symptom is an `LSP` call that finds no server.
+- **A project-scope plugin needs workspace trust and a session started at the repository root.** It
+  does not load from a subdirectory, and it does not load until you accept the trust dialog for the
+  folder.
 
 ## Install with APM
 
-```yaml
-# apm.yml
-dependencies:
-  apm:
-    - xronos-i-am/ruby-lsp-hint
-```
+1. Declare the dependency:
 
-```sh
-apm install
-```
+   ```yaml
+   # apm.yml
+   dependencies:
+     apm:
+       - xronos-i-am/ruby-lsp-hint
+   ```
 
-Then `/reload-plugins` and, once, the `setup-ruby-lsp` skill.
+2. `apm install`. It reports `Configured 1 LSP server` and the hook entries it merged.
+3. `/reload-plugins`, or start the next session. Hooks are read at session start, so the deny begins
+   working in the next session either way.
+4. Run the `setup-ruby-lsp` skill once, and commit the `docs/agents/ruby-lsp.md` it writes.
 
 What lands in the project:
 
 ```
 .claude/skills/apm-lsp/.claude-plugin/plugin.json   the server declaration, auto-discovered
 .claude/settings.json                               the hook entries, merged by APM
-.claude/hooks/ruby-lsp-hint/hooks/           the hook script and its design notes
+.claude/hooks/ruby-lsp-hint/hooks/                  the hook script and its design notes
 .claude/skills/setup-ruby-lsp/                      the setup skill and the seed notes
 ```
 
@@ -83,15 +91,47 @@ project's own files — never in the deployed copies.
 
 ## Install as a Claude Code plugin
 
-The repository is also a one-plugin marketplace, so APM is not required:
+The repository is also a one-plugin marketplace, so APM is not required. Nothing is copied into the
+project on this route: Claude Code runs the plugin from its own directory and resolves
+`${CLAUDE_PLUGIN_ROOT}` itself.
 
-```sh
-claude plugin marketplace add xronos-i-am/ruby-lsp-hint
-claude plugin install ruby-lsp-hint@xronos-i-am
-```
+1. **Add the marketplace.** In your shell:
 
-Here Claude Code runs the plugin from its own directory and resolves `${CLAUDE_PLUGIN_ROOT}` itself;
-nothing is copied into the project.
+   ```sh
+   claude plugin marketplace add xronos-i-am/ruby-lsp-hint
+   ```
+
+   In a session the same source works as `/plugin marketplace add xronos-i-am/ruby-lsp-hint`. Add
+   `#<ref>` to pin a branch or tag. While the repository is private, Claude Code clones it with the
+   git credentials already on your machine and never prompts: for the `owner/repo` shorthand it
+   probes whether your SSH key authenticates to `github.com` and clones over SSH when it does.
+
+2. **Install it, choosing who gets it.** From your shell, where the default scope is yourself on this
+   machine:
+
+   ```sh
+   claude plugin install ruby-lsp-hint@xronos-i-am                   # you, every project
+   claude plugin install ruby-lsp-hint@xronos-i-am --scope project   # everyone in this repository
+   claude plugin install ruby-lsp-hint@xronos-i-am --scope local     # you, this repository only
+   ```
+
+   In a session, `/plugin install ruby-lsp-hint@xronos-i-am` opens the plugin's details so you can
+   review what it adds and pick the scope there. On Claude Code 2.1.275 or later the two steps
+   collapse into one, with the plugin named without its `@marketplace` half:
+
+   ```text
+   /plugin install ruby-lsp-hint --marketplace xronos-i-am/ruby-lsp-hint
+   ```
+
+3. **For a repository, mind what `--scope project` does and does not do.** It writes the entry to
+   `.claude/settings.json`, which you commit, and that turns the plugin on for your collaborators —
+   but it does not download it to their machines. Each of them runs the install command once too.
+
+4. **Activate.** `/reload-plugins`, or start the next session.
+
+5. **Check it arrived.** `claude plugin list` prints the plugin with its version, scope and status,
+   and typing `/` shows its skill as `/ruby-lsp-hint:setup-ruby-lsp`. Run that skill once, and commit
+   the `docs/agents/ruby-lsp.md` it writes.
 
 ## One server per extension
 

@@ -16,14 +16,12 @@ missing, name the exact fix rather than fixing it silently in a way the reposito
 
 ## 1. The server has to be able to start
 
-1. `command -v ruby-lsp` — if nothing answers, the tool will stay silent with no error of its own.
+1. `command -v ruby-lsp` — if nothing answers, the tool stays silent with no error of its own: Claude
+   Code shuts a server down after three failed starts and does not try again for the rest of the
+   session.
 2. Look at how the gem is declared: a `ruby-lsp` entry in a development group of the `Gemfile`, or an
    explicit statement in the setup documentation that it is installed globally. A gem installed by
    hand and written down nowhere is a repair that dies at the next environment change.
-3. If ruby is resolved through a version manager's shim (mise, rbenv, asdf), check that the
-   workspace root carries the version file the shim reads. Without it the shim exits with
-   `No version is set for shim` — the server never starts, and Claude Code gives up on it after
-   three failures and stops trying for the rest of the session.
 
 Report each missing piece with the line that declares it, and stop here if the binary cannot run:
 the remaining steps have nothing to check.
