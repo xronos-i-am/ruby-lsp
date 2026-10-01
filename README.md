@@ -21,6 +21,7 @@ tells Claude Code how to start the binary you already have.
 | The server declaration, `lspServers.ruby-lsp` | Claude Code starts your `ruby-lsp` binary, and the `LSP` tool answers for `.rb`, `.rake`, `.gemspec`, `.ru` and `.erb`: definitions, references, hover, document and workspace symbols |
 | `hooks/lsp-hint.sh` | `grep`, `rg`, `ack`, `ag`, `git log -S`, a `sed`/`awk`/`perl` slash pattern and the `Grep` tool are denied while the pattern is a bare symbol name; a quoted phrase passes |
 | `skills/ruby-lsp-setup` | A one-off setup run: checks the server can start, finds a plugin that claims the same extensions, and writes the project's own `docs/agents/ruby-lsp.md` |
+| `skills/ruby-lsp-feedback` | Works out why a session did not reach the `LSP` tool and composes the issue about it, ready to send and sent by nobody but you |
 
 ## Requirements
 
@@ -85,7 +86,9 @@ Three more conditions, none of which announces itself when unmet:
    [the section below](#turn-off-the-official-ruby-lsp-plugin) says why.
 4. `/reload-plugins`, or start the next session. Hooks are read at session start, so the deny begins
    working in the next session either way.
-5. Run the `ruby-lsp-setup` skill once, and commit the `docs/agents/ruby-lsp.md` it writes.
+5. Run the `ruby-lsp-setup` skill once, and commit the `docs/agents/ruby-lsp.md` it writes. If the
+   server does not start or the `LSP` tool stays silent, `ruby-lsp-feedback` works out why and writes
+   the issue for you to send.
 
 What lands in the project:
 
@@ -94,6 +97,7 @@ What lands in the project:
 .claude/settings.json                               the hook entries, merged by APM
 .claude/hooks/ruby-lsp/hooks/                  the hook script and its design notes
 .claude/skills/ruby-lsp-setup/                      the setup skill and the seed notes
+.claude/skills/ruby-lsp-feedback/                   the skill that writes the issue
 ```
 
 APM owns those files and rewrites them on the next install, so edits belong in the package or in the
@@ -150,7 +154,8 @@ project on this route: Claude Code runs the plugin from its own directory and re
 5. **Activate.** `/reload-plugins`, or start the next session.
 
 6. **Check it arrived.** `claude plugin list` prints the plugin with its version, scope and status,
-   and typing `/` shows its skill as `/ruby-lsp:ruby-lsp-setup`. Run that skill once, and commit
+   and typing `/` shows its skills as `/ruby-lsp:ruby-lsp-setup` and `/ruby-lsp:ruby-lsp-feedback`.
+   Run the setup one once, and commit
    the `docs/agents/ruby-lsp.md` it writes.
 
 ## Removal

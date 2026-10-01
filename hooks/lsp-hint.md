@@ -143,6 +143,11 @@ what looked covered:
 Everything that stands flush is collected in one `start` class: the hole was one, and writing it off
 would have taken three patterns.
 
+The next hole will come the same way, from a session where a search went through, so the package has a
+skill for turning such a session into an issue: `ruby-lsp-feedback` replays the call against this script
+in a clean `TMPDIR`, tells a hole in the coverage apart from a hook that never ran, and writes the issue
+text. A case here and a line in the list above are what an accepted issue turns into.
+
 ## The notes the deny text points at belong to the project
 
 What the server fails to resolve is a property of the project as much as of the server: it depends on

@@ -23,9 +23,9 @@ setup run that slips a line into it leaves a change nobody asked for.
 
 ## 1. The server starts
 
-1. `command -v ruby-lsp` — if nothing answers, stop here and say so: the remaining steps have nothing
-   to check. The failure is silent otherwise, because Claude Code shuts a server down after three
-   failed starts and does not try again for the rest of the session.
+1. `command -v ruby-lsp` — if nothing answers, stop here and say so, and name `ruby-lsp-feedback` as
+   what turns it into an issue. The failure is silent otherwise, because Claude Code shuts a server
+   down after three failed starts and does not try again for the rest of the session.
 2. One `LSP` call — `documentSymbol` on any one ruby file in this repository. Symbols back means the
    server runs here. An empty answer on the first call of a session means the index is not built yet,
    so repeat that same call once; a second empty answer is the thing to report. This is the only `LSP`
@@ -100,6 +100,13 @@ Write the lines in the language of the session; `ok` below stands for whatever t
 A step that found trouble gets the same single line, with what is wrong in place of `ok`: what to do
 about it belongs in the next sentence only if the person cannot work it out from that line. Step 1 is
 the one that ends the run instead of continuing it.
+
+Any step that did not end in `ok` is followed by one more line, naming where the trouble goes — a
+silent failure is the package's problem, not the person's puzzle:
+
+> The server does not start, or the `LSP` tool stays silent — run `ruby-lsp-feedback`: it works out
+> which of the handful of causes it was and writes the issue for
+> [xronos-i-am/ruby-lsp](https://github.com/xronos-i-am/ruby-lsp), ready to send.
 
 Then the file, as a link, with one sentence of what it is:
 
